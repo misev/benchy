@@ -4,21 +4,44 @@ This is a generic and flexible tool for setting up benchmarks. The benchmark is
 self-contained in a single directory given as a parameter:
 
 ```bash
-./benchy.sh -d <benchmark_path> [OPTION]...
+./benchy.sh -d <benchmark_suite_path> [OPTION]...
 ```
 
 The tool uses `/usr/bin/time` for instrumentation, and is probably not extremely
 precise. It is mainly meant for quickly setting up system/macro benchmarks. The
 main principles guiding its design are simplicity and ease of use. For now at 
 least, benchy is a single script that depends on very standard Linux stuff: Bash
-and awk.
+and awk. So installation is extremely straightforward (just download `benchy.sh`).
+
+```bash
+$ ./benchy.sh -h
+
+Usage: benchy.sh -d <benchmark_suite_path> [OPTION]...
+
+A generic and flexible tool for setting up macro/system benchmarks.
+
+Options:
+  -d, --suite-path
+    directory containing the benchmark suite to be evaluated
+  -r, --results-path
+    benchmark results will be saved in a timestamped subdirectory of the
+    directory specified with this argument; by default this is /tmp
+  --init
+    initialize new benchmark suite; the path specified with -d must be an
+    empty directory in this case
+  --quiet
+    do not print any messages, except for errors
+  -h, --help
+    display this help and exit
+
+```
 
 
 ## Nomenclature
 
-- `Benchmark suite`: a collection of benchmark groups
-- `Benchmark group`: a collection of benchmarks
-- `Benchmark`: a single benchmark that is evaluated and for which execution time 
+- _Benchmark suite_: a collection of benchmark groups
+- _Benchmark group_: a collection of benchmarks
+- _Benchmark_: a single benchmark that is evaluated and for which execution time 
 and other statistics are collected.
 
 
@@ -72,7 +95,8 @@ documented below.
 
 ### Variables
 
-- `BENCHMARK_REPEAT`: the number of times to repeat a benchmark; the more times it is evaluated, the more accurate will the measurements be. By default five
+- `BENCHMARK_REPEAT`: the number of times to repeat a benchmark; the more times 
+it is evaluated, the more accurate will the measurements be. By default five
 repetitions are done.
 - `BENCHMARK_RETRY`: the number of times to retry a benchmark when it fails
 (`run_benchmark` return non-zero). By default three retries are attempted.

@@ -57,18 +57,19 @@ readonly SCRIPT_DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 usage()
 {
   local -r usage="
-Usage: $PROG -d <path> [OPTION]...
+Usage: $PROG -d <benchmark_suite_path> [OPTION]...
 
-Description..
+A generic and flexible tool for setting up macro/system benchmarks.
 
 Options:
-  -d, --directory
-    directory containing queries/scripts/programs to execute
+  -d, --suite-path
+    directory containing the benchmark suite to be evaluated
+  -r, --results-path
+    benchmark results will be saved in a timestamped subdirectory of the
+    directory specified with this argument; by default this is /tmp
   --init
-    initialize new benchmarking directory; the directory specified
-    with -d must be an empty directory in this case.
-  --keep
-    do not remove the measurements data directory
+    initialize new benchmark suite; the path specified with -d must be an
+    empty directory in this case
   --quiet
     do not print any messages, except for errors
   -h, --help
