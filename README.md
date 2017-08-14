@@ -106,19 +106,19 @@ repetitions are done.
 
 Benchmark suite
 
-- `on_suite_start`
+- `before_suite`
     - _args_: suite name
     - _description_: executed before starting the benchmark suite evaluation
-- `on_suite_end`
+- `after_suite`
     - _args_: suite name
     - _description_: executed when the benchmark suite evaluation is finished
 
 Benchmark groups
 
-- `on_group_start`
+- `before_group`
     - _args_: group (directory) name
     - _description_: executed before a new group is evaluated
-- `on_group_end`
+- `after_group`
     - _args_: group name
     - _description_: executed when a group evaluation is finished
 
@@ -137,15 +137,15 @@ Single benchmark
     - _args_: benchmark (file) name, group name
     - _return_: 0 if it executed successfully, non-zero otherwise
     - _description_: run non-benchmark file
-- `on_benchmark_start`
+- `before_benchmark`
     - _args_: benchmark (file) name, group name
     - _description_: executed before starting a benchmark evaluation
-- `on_benchmark_end`
+- `after_benchmark`
     - _args_: benchmark (file) name, group name
     - _description_: executed when a benchmark evaluation is finished
-- `on_benchmark_repeat_start`
+- `before_benchmark_repetition`
     - _args_: benchmark (file) name, group name, repetition
     - _description_: executed before starting a benchmark repetition
-- `on_benchmark_repeat_end`
+- `after_benchmark_repetition`
     - _args_: benchmark (file) name, group name, repetition
     - _description_: executed when a benchmark repetition is finished

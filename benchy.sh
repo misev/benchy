@@ -22,19 +22,19 @@ readonly BENCHMARK_CONF="benchmark.conf"
 #
 
 # benchmark suite
-readonly ON_SUITE_START="on_suite_start"
-readonly ON_SUITE_END="on_suite_end"
+readonly BEFORE_SUITE="before_suite"
+readonly AFTER_SUITE="after_suite"
 # benchmark groups
-readonly ON_GROUP_START="on_group_start"
-readonly ON_GROUP_END="on_group_end"
+readonly BEFORE_GROUP="before_group"
+readonly AFTER_GROUP="after_group"
 # single benchmark
 readonly IS_BENCHMARK="is_benchmark" # return 0 if the given file should be benchmarked, 1 otherwise
 readonly RUN_BENCHMARK="run_benchmark"
 readonly RUN_NON_BENCHMARK="run_non_benchmark"
-readonly ON_BENCHMARK_START="on_benchmark_start"
-readonly ON_BENCHMARK_END="on_benchmark_end"
-readonly ON_BENCHMARK_REPEAT_START="on_benchmark_repeat_start"
-readonly ON_BENCHMARK_REPEAT_END="on_benchmark_repeat_end"
+readonly BEFORE_BENCHMARK="before_benchmark"
+readonly AFTER_BENCHMARK="after_benchmark"
+readonly BEFORE_BENCHMARK_REPEAT="before_benchmark_repetition"
+readonly AFTER_BENCHMARK_REPEAT="after_benchmark_repetition"
 
 readonly DEFAULT_BENCHMARK_REPEAT=5
 readonly DEFAULT_BENCHMARK_RETRY=3
@@ -291,12 +291,12 @@ enter_dir()
   fi
   pushd "$new_dir" > /dev/null
   load_benchmark_conf
-  execute_start_end_function "$ON_SUITE_START" "$ON_GROUP_START"
+  execute_start_end_function "$BEFORE_SUITE_START" "$ON_GROUP"
 }
 
 exit_dir()
 {
-  execute_start_end_function "$ON_SUITE_END" "$ON_GROUP_END"
+  execute_start_end_function "$AFTER_SUITE_END" "$ON_GROUP"
   curr_directory=$(popd)
 
   # should we load the suite benchmark.conf again when exiting a group directory?
@@ -435,7 +435,7 @@ execute_repetition()
   local -r group="$2"
   local -r repetition="$3"
 
-  execute_if_defined "$ON_BENCHMARK_REPEAT_START" "$benchmark" "$group" "$repeat"
+  execute_if_defined "$BEFORE_BENCHMARK_REPEAT" "$benchmark" "$group" "$repeat"
 
   local -r benchmark_retry=$(get_number_variable $DEFAULT_BENCHMARK_RETRY $BENCHMARK_RETRY)
   local -r time_output="$group_datadir/$benchmark-$repetition.result"
@@ -449,7 +449,7 @@ execute_repetition()
       /usr/bin/time -v -o "$time_output" /bin/bash && break
   done
 
-  execute_if_defined "$ON_BENCHMARK_REPEAT_END" "$benchmark" "$group" "$repeat"
+  execute_if_defined "$AFTER_BENCHMARK_REPEAT" "$benchmark" "$group" "$repeat"
 }
 
 execute_benchmark()
@@ -457,7 +457,7 @@ execute_benchmark()
   local -r benchmark="$1"
   local -r group="$2"
 
-  execute_if_defined "$ON_BENCHMARK_START" "$benchmark" "$group"
+  execute_if_defined "$BEFORE_BENCHMARK" "$benchmark" "$group"
 
   local -r benchmark_repeat=$(get_number_variable $DEFAULT_BENCHMARK_REPEAT $BENCHMARK_REPEAT)
 
@@ -468,7 +468,7 @@ execute_benchmark()
     done
   fi
 
-  execute_if_defined "$ON_BENCHMARK_END" "$benchmark" "$group"
+  execute_if_defined "$AFTER_BENCHMARK" "$benchmark" "$group"
 
   aggregate_benchmark_results "$benchmark" "$group"
 }
@@ -579,7 +579,7 @@ run_non_benchmark() {
 #
 # executed before starting a benchmark evaluation
 #
-on_benchmark_start() {
+before_benchmark() {
   local -r benchmark="$1"
   local -r group="$2"
 }
@@ -587,7 +587,7 @@ on_benchmark_start() {
 #
 # executed when a benchmark evaluation is finished
 #
-on_benchmark_end() {
+after_benchmark() {
   local -r benchmark="$1"
   local -r group="$2"
 }
@@ -595,7 +595,7 @@ on_benchmark_end() {
 #
 # executed before starting a benchmark repetition
 #
-on_benchmark_repeat_start() {
+before_benchmark_repetition() {
   local -r benchmark="$1"
   local -r group="$2"
   local -r repetition="$3"
@@ -604,7 +604,7 @@ on_benchmark_repeat_start() {
 #
 # benchmark (file) name, group name, repetition
 #
-on_benchmark_repeat_end() {
+after_benchmark_repetition() {
   local -r benchmark="$1"
   local -r group="$2"
   local -r repetition="$3"
@@ -617,14 +617,14 @@ on_benchmark_repeat_end() {
 #
 # executed before a new group is evaluated
 #
-on_group_start() {
+before_group() {
   local -r group="$1"
 }
 
 #
 # executed when a group evaluation is finished
 #
-on_group_end() {
+after_group() {
   local -r group="$1"
 }
 
@@ -635,14 +635,14 @@ on_group_end() {
 #
 # executed before starting the benchmark suite evaluation
 #
-on_suite_start() {
+before_suite() {
   local -r suite="$1"
 }
 
 #
 # executed when the benchmark suite evaluation is finished
 #
-on_suite_end() {
+after_suite() {
   local -r suite="$1"
 }
 
