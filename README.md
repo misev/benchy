@@ -130,7 +130,7 @@ Single benchmark
     - _description_: check whether a file should be benchmarked; if undefined,
     all files are considered benchmarks.
 - `run_benchmark`
-    - _args_: benchmark (file) name, group name, repetition
+    - _args_: benchmark (file) name, group name, repetition, group results directory
     - _return_: 0 if the benchmark executed successfully, non-zero otherwise
     - _description_: run the executable that needs to be benchmarked
 - `run_non_benchmark`

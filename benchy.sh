@@ -224,6 +224,8 @@ verify_command_line_args()
       error "Cannot initialize non-empty directory '$suite_path'."
     fi
   fi
+
+  suite_path="$(readlink -f "$suite_path")"
 }
 
 # ----------------------------------------------------------------------------
@@ -239,7 +241,9 @@ init_suite_datadir()
 {
   local -r suite_name="$1"
   local -r tstamp=$(date +"%y%m%d_%H%M%S")
-  suite_datadir="$results_path/benchy.$suite_name.$tstamp"
+  # make sure we have an absolute path
+  suite_datadir="$(readlink -f "$results_path")"
+  suite_datadir="$suite_datadir/benchy.$suite_name.$tstamp"
   mkdir "$suite_datadir" || \
     error "Failed creating benchmark results directory '$suite_datadir'."
 }
@@ -291,13 +295,14 @@ enter_dir()
   fi
   pushd "$new_dir" > /dev/null
   load_benchmark_conf
-  execute_start_end_function "$BEFORE_SUITE" "$ON_GROUP"
+  execute_start_end_function "$BEFORE_SUITE" "$BEFORE_GROUP"
 }
 
 exit_dir()
 {
-  execute_start_end_function "$AFTER_SUITE" "$ON_GROUP"
-  curr_directory=$(popd)
+  execute_start_end_function "$AFTER_SUITE" "$AFTER_GROUP"
+  popd
+  curr_directory="$(dirname "$curr_directory")"
 
   # should we load the suite benchmark.conf again when exiting a group directory?
   # it's not easily possible to unload the group benchmark.conf if any was loaded
@@ -352,7 +357,7 @@ aggregate_benchmark_results()
             else printf("%.2f", (v[(NR / 2)] + v[(NR / 2) + 1]) / 2.0) }' "$result")
     local min=$(head -n 1 "$result")
     local stddev=$(awk '{ sum += ($1 - '$avg')^2 }
-      END { printf("%.2f", sqrt(sum / (NR-1))) }' "$result")
+      END { res = 0; if (NR > 1) res = sqrt(sum / (NR-1)); printf("%.2f", res) }' "$result")
     echo -n ",$avg,$median,$min,$stddev" >> "$result_group"
   done
   echo "" >> "$result_group"
@@ -435,7 +440,7 @@ execute_repetition()
   local -r group="$2"
   local -r repetition="$3"
 
-  execute_if_defined "$BEFORE_BENCHMARK_REPEAT" "$benchmark" "$group" "$repeat"
+  execute_if_defined "$BEFORE_BENCHMARK_REPEAT" "$benchmark" "$group" "$repetition"
 
   local -r benchmark_retry=$(get_number_variable $DEFAULT_BENCHMARK_RETRY $BENCHMARK_RETRY)
   local -r time_output="$group_datadir/$benchmark-$repetition.result"
@@ -445,11 +450,11 @@ execute_repetition()
   export -f "$RUN_BENCHMARK"
   local retry
   for retry in $(seq $benchmark_retry); do
-    echo "$RUN_BENCHMARK" "$benchmark" "$group" "$repeat" | \
+    echo "$RUN_BENCHMARK $benchmark $group $repetition $group_datadir" | \
       /usr/bin/time -v -o "$time_output" /bin/bash && break
   done
 
-  execute_if_defined "$AFTER_BENCHMARK_REPEAT" "$benchmark" "$group" "$repeat"
+  execute_if_defined "$AFTER_BENCHMARK_REPEAT" "$benchmark" "$group" "$repetition"
 }
 
 execute_benchmark()
@@ -483,7 +488,7 @@ execute_group()
     [ -f "$f" ] || continue
     [ "$f" != "$BENCHMARK_CONF" ] || continue
 
-    if ! function_defined "$IS_BENCHMARK" || "$IS_BENCHMARK" "$f"; then
+    if ! function_defined "$IS_BENCHMARK" || "$IS_BENCHMARK" "$f" "$group"; then
       execute_benchmark "$f" "$group"
     else
       execute_if_defined "$RUN_NON_BENCHMARK" "$f" "$group"
@@ -562,6 +567,7 @@ run_benchmark() {
   local -r benchmark="$1"
   local -r group="$2"
   local -r repetition="$3"
+  local -r group_datadir="$4"
   # add code to execute the benchmark, e.g. `./$benchmark` if the file is an
   # executable
 }
