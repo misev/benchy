@@ -291,12 +291,12 @@ enter_dir()
   fi
   pushd "$new_dir" > /dev/null
   load_benchmark_conf
-  execute_start_end_function "$BEFORE_SUITE_START" "$ON_GROUP"
+  execute_start_end_function "$BEFORE_SUITE" "$ON_GROUP"
 }
 
 exit_dir()
 {
-  execute_start_end_function "$AFTER_SUITE_END" "$ON_GROUP"
+  execute_start_end_function "$AFTER_SUITE" "$ON_GROUP"
   curr_directory=$(popd)
 
   # should we load the suite benchmark.conf again when exiting a group directory?
