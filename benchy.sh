@@ -298,7 +298,9 @@ enter_dir()
     init_suite_datadir "$dir_name"
     curr_directory="$new_dir"
   fi
+  echo "enter dir before: $PWD"
   pushd "$new_dir" > /dev/null
+  echo "enter dir after: $PWD"
   load_benchmark_conf
   execute_start_end_function "$BEFORE_SUITE" "$BEFORE_GROUP"
 }
@@ -306,7 +308,9 @@ enter_dir()
 exit_dir()
 {
   execute_start_end_function "$AFTER_SUITE" "$AFTER_GROUP"
+  echo "exit dir before: $PWD"
   popd
+  echo "exit dir after: $PWD"
   curr_directory="$(dirname "$curr_directory")"
 
   # should we load the suite benchmark.conf again when exiting a group directory?
@@ -331,7 +335,7 @@ aggregate_benchmark_results()
   local -r result_time="$group_datadir/$benchmark.time"
   local -r result_memory="$group_datadir/$benchmark.memory"
   local -r result_cpu_utilization="$group_datadir/$benchmark.cpu"
-  local -r result_group="$group_datadir/$group.results"
+  local -r result_group="$group_datadir/$group.results.csv"
 
   local result
 
@@ -380,8 +384,8 @@ aggregate_group_results()
   local -r group="$1"
   local -r suite=$(basename "$suite_path")
 
-  local -r result_group="$group_datadir/$group.results"
-  local -r result_suite="$suite_datadir/$suite.results"
+  local -r result_group="$group_datadir/$group.results.csv"
+  local -r result_suite="$suite_datadir/$suite.results.csv"
 
   [ -f "$result_suite" ] || echo "$result_suite_header" > "$result_suite"
   echo -n "$group" >> "$result_suite"
@@ -413,8 +417,8 @@ aggregate_total_results()
 {
   local -r suite=$(basename "$suite_path")
 
-  local -r result_suite="$suite_datadir/$suite.results"
-  local -r result_total="$suite_datadir/$suite.total_results"
+  local -r result_suite="$suite_datadir/$suite.results.csv"
+  local -r result_total="$suite_datadir/$suite.total_results.csv"
 
   echo "$result_total_header" > "$result_total"
   echo -n "$suite" >> "$result_total"
@@ -486,7 +490,10 @@ execute_benchmark()
 execute_group()
 {
   local -r group="$1"
+
+  echo "execute_group before enter: $PWD"
   enter_dir "$group"
+  echo "execute_group after enter: $PWD"
 
   local f
   for f in *; do
@@ -500,7 +507,9 @@ execute_group()
     fi
   done
 
+  echo "execute_group before exit: $PWD"
   exit_dir
+  echo "execute_group after exit: $PWD"
   aggregate_group_results "$group"
 }
 
@@ -509,17 +518,24 @@ curr_directory=""
 
 execute_suite()
 {
+  echo "execute_suite before enter: $PWD"
   enter_dir "$suite_path"
+  echo "execute_suite after enter: $PWD"
 
   local group_dir
   for group_dir in *; do
     # skip non-directories
     [ -d "$group_dir" ] || continue
 
+
+    echo "execute_suite before execute_group: $PWD"
     execute_group "$group_dir"
+    echo "execute_suite after execute_group: $PWD"
   done
 
+  echo "execute_suite before exit: $PWD"
   exit_dir
+  echo "execute_suite after exit: $PWD"
   aggregate_total_results
   log "All benchmarks completted."
 }
@@ -674,3 +690,5 @@ if [ -n "$init_benchmark" ]; then
 else
   execute_suite
 fi
+
+exit $RC_OK
