@@ -25,9 +25,18 @@ COL_CPU = 'cpu'
 COL_MEAN = 'mean'
 COL_MEDIAN = 'median'
 COL_MIN = 'min'
+COL_STDDEV = 'stddev'
 
 COL_BENCHMARK_NAME_OFFSET = 0
-COL_STDDEV_OFFSET = 3
+COL_TIME_OFFSET = 1
+COL_MEMORY_OFFSET = 5
+COL_CPU_OFFSET = 9
+
+HAS_STDDEV = False
+NUM_STATS = 3
+
+OFFSET_STATS = {COL_MEAN: 0, COL_MEDIAN: 1, COL_MIN: 2, COL_STDDEV: 3}
+OFFSET_MEASUREMENTS = {COL_ALL: 0, COL_TIME: 0, COL_MEMORY: 1, COL_CPU: 2}
 
 
 def exit_with_error(msg):
@@ -61,9 +70,6 @@ class ColSpec:
     """
     VALID_MEASUREMENTS = [COL_TIME, COL_MEMORY, COL_CPU]
     VALID_STATS = [COL_MEAN, COL_MEDIAN, COL_MIN]
-    OFFSET_MEASUREMENT = {COL_ALL: 1, COL_TIME: 1, COL_MEMORY: 5, COL_CPU: 9}
-    OFFSET_STATS = {COL_MEAN: 0, COL_MEDIAN: 1, COL_MIN: 2}
-    NUM_STATS = 4
 
     def __init__(self, measurement, stat):
         if measurement not in self.VALID_MEASUREMENTS and measurement != COL_ALL:
@@ -74,7 +80,8 @@ class ColSpec:
                              of mean, median, or min.")
         self.measurement = measurement
         self.stat = stat
-        self.index = self.OFFSET_MEASUREMENT[measurement] + self.OFFSET_STATS[stat]
+        measurement_offset = 1 + NUM_STATS * OFFSET_MEASUREMENTS[measurement]
+        self.index = measurement_offset + OFFSET_STATS[stat]
 
 
 def get_csv_fields(csv_file, col_specs):
@@ -84,12 +91,19 @@ def get_csv_fields(csv_file, col_specs):
     plotlines = None
     with open(csv_file) as f_obj:
         reader = csv.reader(f_obj, delimiter=',', skipinitialspace=True)
+        header = None
         for row in reader:
             if len(row) == 0:
                 continue
 
             if plotlines is None:
                 # handle header row (first iteration only)
+                header = row
+                for col_header in header:
+                    if COL_STDDEV in col_header.lower():
+                        NUM_STATS = 4
+                        HAS_STDDEV = True
+                        break
                 plotlines = []
                 for col in col_specs:
                     ylabel = row[col.index]
@@ -106,8 +120,8 @@ def get_csv_fields(csv_file, col_specs):
                 data_value = float(row[col.index])
                 stddev_value = None
                 if plotline.isMean:
-                    stddev_ind = col.index + COL_STDDEV_OFFSET
-                    if stddev_ind < len(row):
+                    stddev_ind = col.index + OFFSET_STATS[COL_STDDEV]
+                    if stddev_ind < len(row) and HAS_STDDEV:
                         stddev_value = float(row[stddev_ind])
                 plotline.append(data_value, xtick_label, stddev_value)
 
@@ -169,7 +183,8 @@ def plot_data(files, col_specs, data_labels, xlabel, ylabel, title,
             if len(p.stddev) > 0:
                 stddev = p.stddev
             plt.errorbar(range(len(xtick_labels)), p.data, stddev, label=label,
-                         marker='.', lw=1.0, markersize=9, color=color, linestyle='-')
+                         marker='.', lw=1.0, markersize=9, color=color,
+                         linestyle='-')
 
             if subplot_count == 1:
                 correct_font(plt.ylabel(p.ylabel), fontsize_axis)
@@ -194,9 +209,10 @@ def plot_data(files, col_specs, data_labels, xlabel, ylabel, title,
         correct_font(plt.figtext(0.04, yoffset, xtick_legend), fontsize_ticks)
 
     legend_colls = 2 if len(files) > 4 else 1
-    ax.legend(loc='best', ncol=legend_colls, title=legend_title, fontsize=fontsize_legend)
+    ax.legend(loc='best', ncol=legend_colls, title=legend_title,
+              fontsize=fontsize_legend)
 
-    plt.xticks(range(len(xtick_labels)), xtick_labels, rotation=50)
+    plt.xticks(range(len(xtick_labels)), xtick_labels, rotation=70)
 
     # plt.tight_layout()
     if out_file:

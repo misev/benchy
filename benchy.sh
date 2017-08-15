@@ -322,9 +322,9 @@ exit_dir()
 # ----------------------------------------------------------------------------
 
 readonly result_group_header="Benchmark,\
-Mean time (s),Median time,Min time,Stddev time,\
-Mean memory use (MB),Median memory use,Min memory use,Stddev memory use,\
-Mean CPU use (%),Median CPU use,Min CPU use,Stddev CPU use"
+Mean execution time (s),Median execution time (s),Min execution time (s),Stddev time,\
+Mean memory use (MB),Median memory use (MB),Min memory use (MB),Stddev memory use,\
+Mean CPU use (%),Median CPU use (%),Min CPU use (%),Stddev CPU use"
 
 aggregate_benchmark_results()
 {
@@ -375,9 +375,9 @@ aggregate_benchmark_results()
 }
 
 readonly result_suite_header="Group,\
-Mean time (s),Median time,Min time,\
-Mean memory use (MB),Median memory use,Min memory use,\
-Mean CPU use (%),Median CPU use,Min CPU use"
+Mean execution time (s),Median execution time (s),Min execution time (s),\
+Mean memory use (MB),Median memory use (MB),Min memory use (MB),\
+Mean CPU use (%),Median CPU use (%),Min CPU use (%)"
 
 aggregate_group_results()
 {
@@ -409,9 +409,9 @@ aggregate_group_results()
 }
 
 readonly result_total_header="Suite,\
-Mean time (s),Median time,Min time,\
-Mean memory use (MB),Median memory use,Min memory use,\
-Mean CPU use (%),Median CPU use,Min CPU use"
+Mean execution time (s),Median execution time (s),Min execution time (s),\
+Mean memory use (MB),Median memory use (MB),Min memory use (MB),\
+Mean CPU use (%),Median CPU use (%),Min CPU use (%)"
 
 aggregate_total_results()
 {
