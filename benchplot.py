@@ -15,7 +15,24 @@ import sys
 
 COLORS = ['black', 'red', 'gold', 'green', 'blue', 'magenta',
           'cyan', 'gray', 'darkorange', 'navy', 'violet', 'lime', 'pink']
-STDDEV_FIELD_OFFSET = 3
+
+# columns specification
+# [(all|time|memory|cpu)[:(mean|median|min)]]
+COL_ALL = 'all'
+COL_TIME = 'time'
+COL_MEMORY = 'memory'
+COL_CPU = 'cpu'
+COL_MEAN = 'mean'
+COL_MEDIAN = 'median'
+COL_MIN = 'min'
+
+COL_BENCHMARK_NAME_OFFSET = 0
+COL_STDDEV_OFFSET = 3
+
+
+def exit_with_error(msg):
+    print >> sys.stderr, msg
+    sys.exit(1)
 
 
 class PlotLine:
@@ -26,19 +43,43 @@ class PlotLine:
         self.data = []
         self.stddev = []
         self.ylabel = ylabel
-        self.isMean = "mean " in self.ylabel.lower()
+        self.isMean = "mean" in self.ylabel.lower()
         self.xtick_labels = []
 
     def append(self, data_value, xtick_label, stddev_value=None):
         self.data.append(data_value)
+        if "." in xtick_label:
+            xtick_label = xtick_label[:xtick_label.find(".")]
         self.xtick_labels.append(xtick_label)
         if stddev_value is not None:
             self.stddev.append(stddev_value)
 
 
-def get_csv_fields(csv_file, data_fields):
+class ColSpec:
     """
-    Get the data in columns indicated by data_fields indices from a csv_file
+    A column is some combination of (all|time|memory|cpu) and (mean|median|min)
+    """
+    VALID_MEASUREMENTS = [COL_TIME, COL_MEMORY, COL_CPU]
+    VALID_STATS = [COL_MEAN, COL_MEDIAN, COL_MIN]
+    OFFSET_MEASUREMENT = {COL_ALL: 1, COL_TIME: 1, COL_MEMORY: 5, COL_CPU: 9}
+    OFFSET_STATS = {COL_MEAN: 0, COL_MEDIAN: 1, COL_MIN: 2}
+    NUM_STATS = 4
+
+    def __init__(self, measurement, stat):
+        if measurement not in self.VALID_MEASUREMENTS and measurement != COL_ALL:
+            exit_with_error("Invalid measurement '" + str(measurement) + "', \
+                             expected one of all, time, memory, or cpu.")
+        if stat not in self.VALID_STATS:
+            exit_with_error("Invalid statistic '" + str(stat) + "', expected one \
+                             of mean, median, or min.")
+        self.measurement = measurement
+        self.stat = stat
+        self.index = self.OFFSET_MEASUREMENT[measurement] + self.OFFSET_STATS[stat]
+
+
+def get_csv_fields(csv_file, col_specs):
+    """
+    Get the data in columns indicated by the column specifications
     """
     plotlines = None
     with open(csv_file) as f_obj:
@@ -48,32 +89,41 @@ def get_csv_fields(csv_file, data_fields):
                 continue
 
             if plotlines is None:
-                # header row
-                plotlines = [PlotLine(row[i]) for i in data_fields]
-            else:
-                xtick_label = row[0]
-                if "." in xtick_label:
-                    xtick_label = xtick_label[:xtick_label.find(".")]
+                # handle header row (first iteration only)
+                plotlines = []
+                for col in col_specs:
+                    ylabel = row[col.index]
+                    tmp = ylabel.lower()
+                    if col.measurement not in tmp or col.stat not in tmp:
+                        exit_with_error("Corrupt csv file '" + csv_file + "'? \
+                                         Invalid column header '" + ylabel + "'.")
 
-                for (data_ind, plotline) in zip(data_fields, plotlines):
-                    stddev_value = None
-                    if plotline.isMean:
-                        stddev_ind = data_ind + STDDEV_FIELD_OFFSET
-                        if stddev_ind < len(row):
-                            stddev_value = float(row[stddev_ind])
-                    plotline.append(float(row[data_ind]), xtick_label, stddev_value)
+                    plotlines.append(PlotLine(ylabel))
+                continue
+
+            xtick_label = row[COL_BENCHMARK_NAME_OFFSET]
+            for (col, plotline) in zip(col_specs, plotlines):
+                data_value = float(row[col.index])
+                stddev_value = None
+                if plotline.isMean:
+                    stddev_ind = col.index + COL_STDDEV_OFFSET
+                    if stddev_ind < len(row):
+                        stddev_value = float(row[stddev_ind])
+                plotline.append(data_value, xtick_label, stddev_value)
 
     return plotlines
 
 
-def plot_data(files, data_fields, data_labels, xlabel, ylabel, title,
+def plot_data(files, col_specs, data_labels, xlabel, ylabel, title,
               xtick_labels, out_file, legend_title, xtick_legend):
     """
     Generate plot.
     """
     fontname = "cmr10"
     fontsize = 22
+    fontsize_axis = 18
     fontsize_legend = 16
+    fontsize_ticks = 14
     font = {'family': fontname, 'size': fontsize_legend}
     matplotlib.rc('font', **font)
 
@@ -82,47 +132,71 @@ def plot_data(files, data_fields, data_labels, xlabel, ylabel, title,
         x.set_fontname(fontname)
 
     # load data into alldata
-    alldata = []
-    allstddevs = []
-    data_lbls = []
-    ind = 0
+    all_plotlines = None
+    subplot_count = 1
     for f in files:
-        plotlines = get_csv_fields(f, data_fields)
-        for p in plotlines:
-            alldata.append(p.data)
-            if len(p.stddev) > 0:
-                allstddevs.append(p.stddev)
-            else:
-                allstddevs.append(None)
-        data_lbls.append(data_labels[ind])
-        if xtick_labels is None:
-            xtick_labels = plotlines[0].xtick_labels
-        if ylabel is None:
-            ylabel = plotlines[0].ylabel
-        ind += 1
+        plotlines = get_csv_fields(f, col_specs)
+        if all_plotlines is None:
+            all_plotlines = [[plotline] for plotline in plotlines]
+            subplot_count = len(plotlines)
+            if xtick_labels is None:
+                xtick_labels = plotlines[0].xtick_labels
+            if ylabel is None:
+                ylabel = plotlines[0].ylabel
+        else:
+            for (data, plotline) in zip(all_plotlines, plotlines):
+                data.append(plotline)
 
     # plot data
-    plt.figure(figsize=(8, 6))
-    plt.subplot(111)
-    for (data, stddev, label, color) in zip(alldata, allstddevs, data_lbls, COLORS):
-        plt.errorbar(range(len(xtick_labels)), data, stddev, label=label,
-                     marker='.', lw=1.0, markersize=9, color=color, linestyle='-')
+    nrows = 6
+    if subplot_count == 2:
+        nrows = 8
+    elif subplot_count == 3:
+        nrows = 10
+    plt.figure(figsize=(8, nrows))
+    ax = None
+    curr_ax = None
+    for i in range(subplot_count):
+        if ax is None:
+            ax = plt.subplot(subplot_count, 1, i + 1)
+            curr_ax = ax
+        else:
+            curr_ax = plt.subplot(subplot_count, 1, i + 1, sharex=ax)
+
+        plotlines = all_plotlines[i]
+        for (p, label, color) in zip(plotlines, data_labels, COLORS):
+            stddev = None
+            if len(p.stddev) > 0:
+                stddev = p.stddev
+            plt.errorbar(range(len(xtick_labels)), p.data, stddev, label=label,
+                         marker='.', lw=1.0, markersize=9, color=color, linestyle='-')
+
+            if subplot_count == 1:
+                correct_font(plt.ylabel(p.ylabel), fontsize_axis)
+            else:
+                correct_font(curr_ax.set_title(p.ylabel), fontsize_axis)
+            plt.grid(True)
+
+        for tick in curr_ax.yaxis.get_major_ticks():
+            correct_font(tick.label, fontsize_ticks)
+
+        if i < subplot_count - 1:
+            # make these tick labels invisible
+            plt.setp(curr_ax.get_xticklabels(), visible=False)
 
     # set labels, title and legend
-    correct_font(plt.xlabel(xlabel))
-    correct_font(plt.ylabel(ylabel))
+    correct_font(plt.xlabel(xlabel), fontsize_axis)
     if title:
-        correct_font(plt.suptitle(title), int(1.3 * fontsize))
+        correct_font(plt.suptitle(title))
     if xtick_legend:
         xtick_legend = xtick_legend.replace(";", "\n")
         yoffset = 0.72
-        correct_font(plt.figtext(0.04, yoffset, xtick_legend))
+        correct_font(plt.figtext(0.04, yoffset, xtick_legend), fontsize_ticks)
 
-    legend_colls = 2 if len(alldata) > 4 else 1
-    plt.legend(loc='best', ncol=legend_colls, title=legend_title, fontsize=fontsize_legend)
+    legend_colls = 2 if len(files) > 4 else 1
+    ax.legend(loc='best', ncol=legend_colls, title=legend_title, fontsize=fontsize_legend)
 
     plt.xticks(range(len(xtick_labels)), xtick_labels, rotation=50)
-    plt.grid(True)
 
     # plt.tight_layout()
     if out_file:
@@ -133,45 +207,73 @@ def plot_data(files, data_fields, data_labels, xlabel, ylabel, title,
 
 def get_argument_parser():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-f", "--files", help="comma-separated list of CSV files, e.g. file1,file2,...")
-    parser.add_argument("--data-fields", help="get data values for the plot from the given field in the CSV file (0-indexed).", default="1")
-    parser.add_argument("--data-labels", help="manually list the labels for the legend, separated by ','.", default=None)
-    parser.add_argument("--xlabel", help="x axis label.", default="Execution time (s)")
-    parser.add_argument("--ylabel", help="y axis label.", default=None)
-    parser.add_argument("--xtick-labels", help="custom tick labels for the X axis, comma-separated.", default=None)
-    parser.add_argument("--xtick-legend", help="legend for the X axis ticks, as ';' separated strings.")
-    parser.add_argument("--title", help="plot title.", default="Benchmark")
-    parser.add_argument("--legend-title", help="legend title.")
-    parser.add_argument("-o", "--outfile", help="file name for saving the plot.", default="plot.png")
+    parser.add_argument("-f", "--files",
+        help="comma-separated list of CSV files, e.g. file1,file2,...")
+    parser.add_argument("--columns",
+        help="specification of the data columns to be extracted from each file \
+              as comma-separated values of the format \
+              [(all|time|memory|cpu)[:(mean|median|min)]]. By default the first \
+              part is 'all' and the second is 'mean'.",
+        default="all:mean")
+    parser.add_argument("--data-labels",
+        help="manually list the labels for the legend, separated by ','.",
+        default=None)
+    parser.add_argument("--xlabel",
+        help="x axis label.",
+        default="Query")
+    parser.add_argument("--ylabel",
+        help="y axis label.",
+        default=None)
+    parser.add_argument("--xtick-labels",
+        help="custom tick labels for the X axis, comma-separated.",
+        default=None)
+    parser.add_argument("--xtick-legend",
+        help="legend for the X axis ticks, as ';' separated strings.")
+    parser.add_argument("--title",
+        help="plot title.",
+        default="Benchmark")
+    parser.add_argument("--legend-title",
+        help="legend title.")
+    parser.add_argument("-o", "--outfile",
+        help="file name for saving the plot.",
+        default="plot.png")
     return parser
 
 
-def exit_with_error(msg):
-    print >> sys.stderr, msg
-    sys.exit(1)
-
-
 def check_args(args):
-    if not args.files and not args.dir:
-        exit_with_error("Please specify benchmark result files.")
-    elif not args.data_fields:
-        exit_with_error("Please specify the data field index.")
+    if not args.files:
+        exit_with_error("Please specify the benchmark result files.")
 
 
 def get_list_arg(arg):
     return arg.split(",") if arg else None
 
 
+def parse_column_specs(columns_arg):
+    columns = get_list_arg(columns_arg)
+    ret = []
+    for column in columns:
+        if ":" in column:
+            tmp = column.split(":")
+            ret.append(ColSpec(tmp[0], tmp[1]))
+        else:
+            ret.append(ColSpec(column, COL_MEAN))
+        if ret[-1].measurement == COL_ALL and len(columns) > 1:
+            exit_with_error("Only one column can be specified with --columns \
+                             when using 'all'.")
+    if ret[-1].measurement == COL_ALL:
+        # replace 'all' with all valid measurements
+        col = ret[-1]
+        ret = [ColSpec(m, col.stat) for m in ColSpec.VALID_MEASUREMENTS]
+    return ret
+
 if __name__ == "__main__":
     parser = get_argument_parser()
     args = parser.parse_args()
     check_args(args)
 
-    data_fields_str_list = get_list_arg(args.data_fields)
-    data_fields = [int(field) for field in data_fields_str_list]
-
     plot_data(get_list_arg(args.files),
-              data_fields,
+              parse_column_specs(args.columns),
               get_list_arg(args.data_labels),
               args.xlabel,
               args.ylabel,
