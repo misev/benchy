@@ -80,14 +80,18 @@ class ColSpec:
                              of mean, median, or min.")
         self.measurement = measurement
         self.stat = stat
-        measurement_offset = 1 + NUM_STATS * OFFSET_MEASUREMENTS[measurement]
-        self.index = measurement_offset + OFFSET_STATS[stat]
+
+    def get_index(self):
+        measurement_offset = 1 + NUM_STATS * OFFSET_MEASUREMENTS[self.measurement]
+        return measurement_offset + OFFSET_STATS[self.stat]
 
 
 def get_csv_fields(csv_file, col_specs):
     """
     Get the data in columns indicated by the column specifications
     """
+    global NUM_STATS
+    global HAS_STDDEV
     plotlines = None
     with open(csv_file) as f_obj:
         reader = csv.reader(f_obj, delimiter=',', skipinitialspace=True)
@@ -106,21 +110,21 @@ def get_csv_fields(csv_file, col_specs):
                         break
                 plotlines = []
                 for col in col_specs:
-                    ylabel = row[col.index]
+                    ylabel = row[col.get_index()]
                     tmp = ylabel.lower()
                     if col.measurement not in tmp or col.stat not in tmp:
-                        exit_with_error("Corrupt csv file '" + csv_file + "'? \
-                                         Invalid column header '" + ylabel + "'.")
+                        exit_with_error("Corrupt csv file '" + csv_file + "'? "
+                                        "Invalid column header '" + ylabel + "'.")
 
                     plotlines.append(PlotLine(ylabel))
                 continue
 
             xtick_label = row[COL_BENCHMARK_NAME_OFFSET]
             for (col, plotline) in zip(col_specs, plotlines):
-                data_value = float(row[col.index])
+                data_value = float(row[col.get_index()])
                 stddev_value = None
                 if plotline.isMean:
-                    stddev_ind = col.index + OFFSET_STATS[COL_STDDEV]
+                    stddev_ind = col.get_index() + OFFSET_STATS[COL_STDDEV]
                     if stddev_ind < len(row) and HAS_STDDEV:
                         stddev_value = float(row[stddev_ind])
                 plotline.append(data_value, xtick_label, stddev_value)
