@@ -30,6 +30,7 @@ readonly BENCHMARK_CONF="benchmark.conf"
 readonly BEFORE_SUITE="before_suite"
 readonly AFTER_SUITE="after_suite"
 # benchmark groups
+readonly IS_GROUP="is_group"
 readonly BEFORE_GROUP="before_group"
 readonly AFTER_GROUP="after_group"
 # single benchmark
@@ -298,9 +299,7 @@ enter_dir()
     init_suite_datadir "$dir_name"
     curr_directory="$new_dir"
   fi
-  echo "enter dir before: $PWD"
   pushd "$new_dir" > /dev/null
-  echo "enter dir after: $PWD"
   load_benchmark_conf
   execute_start_end_function "$BEFORE_SUITE" "$BEFORE_GROUP"
 }
@@ -308,9 +307,7 @@ enter_dir()
 exit_dir()
 {
   execute_start_end_function "$AFTER_SUITE" "$AFTER_GROUP"
-  echo "exit dir before: $PWD"
   popd
-  echo "exit dir after: $PWD"
   curr_directory="$(dirname "$curr_directory")"
 
   # should we load the suite benchmark.conf again when exiting a group directory?
@@ -491,9 +488,7 @@ execute_group()
 {
   local -r group="$1"
 
-  echo "execute_group before enter: $PWD"
   enter_dir "$group"
-  echo "execute_group after enter: $PWD"
 
   local f
   for f in *; do
@@ -507,9 +502,7 @@ execute_group()
     fi
   done
 
-  echo "execute_group before exit: $PWD"
   exit_dir
-  echo "execute_group after exit: $PWD"
   aggregate_group_results "$group"
 }
 
@@ -518,24 +511,19 @@ curr_directory=""
 
 execute_suite()
 {
-  echo "execute_suite before enter: $PWD"
   enter_dir "$suite_path"
-  echo "execute_suite after enter: $PWD"
 
   local group_dir
   for group_dir in *; do
     # skip non-directories
     [ -d "$group_dir" ] || continue
 
-
-    echo "execute_suite before execute_group: $PWD"
-    execute_group "$group_dir"
-    echo "execute_suite after execute_group: $PWD"
+    if ! function_defined "$IS_GROUP" || "$IS_GROUP" "$group_dir"; then
+      execute_group "$group_dir"
+    fi
   done
 
-  echo "execute_suite before exit: $PWD"
   exit_dir
-  echo "execute_suite after exit: $PWD"
   aggregate_total_results
   log "All benchmarks completted."
 }

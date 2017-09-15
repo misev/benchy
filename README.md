@@ -115,6 +115,11 @@ Benchmark suite
 
 Benchmark groups
 
+- `is_group`
+    - _args_: group name
+    - _return_: 0 if the given group should be benchmarked, non-zero otherwise
+    - _description_: check whether a group should be benchmarked; if undefined,
+    all groups are benchmarked.
 - `before_group`
     - _args_: group (directory) name
     - _description_: executed before a new group is evaluated
