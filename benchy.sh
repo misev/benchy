@@ -532,8 +532,7 @@ execute_suite()
   exit_dir
   aggregate_total_results
   if [ $failed_benchmark_count -gt 0 ]; then
-    log "$total_benchmark_count benchmarks executed, "
-        "of which $failed_benchmark_count with errors."
+    log "$total_benchmark_count benchmarks executed, of which $failed_benchmark_count with errors."
   else
     log "$total_benchmark_count benchmarks executed with no errors."
   fi
