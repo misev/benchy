@@ -440,6 +440,9 @@ aggregate_total_results()
 # evaluation
 # ----------------------------------------------------------------------------
 
+total_benchmark_count=0
+failed_benchmark_count=0
+
 execute_repetition()
 {
   local -r benchmark="$1"
@@ -458,6 +461,8 @@ execute_repetition()
   for retry in $(seq $benchmark_retry); do
     echo "$RUN_BENCHMARK $benchmark $group $repetition $group_datadir" | \
       /usr/bin/time -v -o "$time_output" /bin/bash && break
+    # count only the first failed try
+    [ $retry -eq 1 ] && failed_benchmark_count=$(($failed_benchmark_count + 1))
   done
 
   execute_if_defined "$AFTER_BENCHMARK_REPEAT" "$benchmark" "$group" "$repetition"
@@ -477,6 +482,7 @@ execute_benchmark()
     for repetition in $(seq $benchmark_repeat); do
       execute_repetition "$benchmark" "$group" "$repetition"
     done
+    total_benchmark_count=$(($total_benchmark_count + 1))
   fi
 
   execute_if_defined "$AFTER_BENCHMARK" "$benchmark" "$group"
@@ -525,7 +531,12 @@ execute_suite()
 
   exit_dir
   aggregate_total_results
-  log "All benchmarks completted."
+  if [ $failed_benchmark_count -gt 0 ]; then
+    log "$total_benchmark_count benchmarks executed, "
+        "of which $failed_benchmark_count with errors."
+  else
+    log "$total_benchmark_count benchmarks executed with no errors."
+  fi
 }
 
 # ----------------------------------------------------------------------------
