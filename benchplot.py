@@ -121,7 +121,7 @@ def get_csv_fields(csv_file, col_specs):
 
             xtick_label = row[COL_BENCHMARK_NAME_OFFSET]
             for (col, plotline) in zip(col_specs, plotlines):
-                if len(row[col.get_index()]) == 0:
+                if row[col.get_index()] == "":
                     continue
                 data_value = float(row[col.get_index()])
                 stddev_value = None
@@ -151,6 +151,9 @@ def plot_data(files, col_specs, data_labels, xlabel, ylabel, title,
         x.set_fontsize(fontsize)
         x.set_fontname(fontname)
 
+    def fix_underscores(s, r=' '):
+        return s.replace('_', r)
+
     # load data into alldata
     all_plotlines = None
     subplot_count = 1
@@ -173,7 +176,8 @@ def plot_data(files, col_specs, data_labels, xlabel, ylabel, title,
         nrows = 8
     elif subplot_count == 3:
         nrows = 10
-    plt.figure(figsize=(8, nrows))
+    ncols = max(8, len(xtick_labels)/1.5)
+    plt.figure(figsize=(ncols, nrows))
     ax = None
     curr_ax = None
     for i in range(subplot_count):
@@ -208,17 +212,29 @@ def plot_data(files, col_specs, data_labels, xlabel, ylabel, title,
     # set labels, title and legend
     correct_font(plt.xlabel(xlabel), fontsize_axis)
     if title:
-        correct_font(plt.suptitle(title))
+        correct_font(plt.suptitle(fix_underscores(title)))
     if xtick_legend:
         xtick_legend = xtick_legend.replace(";", "\n")
-        yoffset = 0.72
-        correct_font(plt.figtext(0.04, yoffset, xtick_legend), fontsize_ticks)
+        plt.figtext(0.93, 0.12, xtick_legend, fontsize=fontsize_ticks-2, family="monospace",
+            bbox={"facecolor":"orange", "alpha":0.5, "pad":5})
 
     legend_colls = 2 if len(files) > 4 else 1
     ax.legend(loc='best', ncol=legend_colls, title=legend_title,
               fontsize=fontsize_legend)
 
-    plt.xticks(range(len(xtick_labels)), xtick_labels, rotation=70)
+    max_xtick_label_len = 0
+    for lbl in xtick_labels:
+        max_xtick_label_len = max(max_xtick_label_len, len(lbl))
+    rotation = 0
+    if max_xtick_label_len > 20:
+        rotation = 80
+    elif max_xtick_label_len > 15:
+        rotation = 75
+    elif max_xtick_label_len > 10:
+        rotation = 70
+    elif max_xtick_label_len > 5:
+        rotation = 65
+    plt.xticks(range(len(xtick_labels)), xtick_labels, rotation=rotation)
 
     # plt.tight_layout()
     if out_file:
