@@ -121,6 +121,8 @@ def get_csv_fields(csv_file, col_specs):
 
             xtick_label = row[COL_BENCHMARK_NAME_OFFSET]
             for (col, plotline) in zip(col_specs, plotlines):
+                if len(row[col.get_index()]) == 0:
+                    continue
                 data_value = float(row[col.get_index()])
                 stddev_value = None
                 if plotline.isMean:

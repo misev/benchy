@@ -462,7 +462,7 @@ execute_repetition()
     echo "$RUN_BENCHMARK $benchmark $group $repetition $group_datadir" | \
       /usr/bin/time -v -o "$time_output" /bin/bash && break
     # count only the first failed try
-    [ $retry -eq 1 ] && failed_benchmark_count=$(($failed_benchmark_count + 1))
+    [ "$retry" == "1" ] && failed_benchmark_count=$(($failed_benchmark_count + 1))
   done
 
   execute_if_defined "$AFTER_BENCHMARK_REPEAT" "$benchmark" "$group" "$repetition"
