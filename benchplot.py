@@ -135,7 +135,7 @@ def get_csv_fields(csv_file, col_specs):
 
 
 def plot_data(files, col_specs, data_labels, xlabel, ylabel, title,
-              xtick_labels, out_file, legend_title, xtick_legend):
+              xtick_labels, out_file, legend_title, xtick_legend, chart_type):
     """
     Generate plot.
     """
@@ -171,6 +171,7 @@ def plot_data(files, col_specs, data_labels, xlabel, ylabel, title,
                 data.append(plotline)
 
     # plot data
+    n = len(data_labels)
     nrows = 6
     if subplot_count == 2:
         nrows = 8
@@ -188,19 +189,33 @@ def plot_data(files, col_specs, data_labels, xlabel, ylabel, title,
             curr_ax = plt.subplot(subplot_count, 1, i + 1, sharex=ax)
 
         plotlines = all_plotlines[i]
+
+        bar_width = 0.4
+        bar_offset = 0
+        if n > 1:
+            bar_offset -= (n / 2.0) * (bar_width / 2)
         for (p, label, color) in zip(plotlines, data_labels, COLORS):
             stddev = None
             if len(p.stddev) > 0:
                 stddev = p.stddev
-            plt.errorbar(range(len(xtick_labels)), p.data, stddev, label=label,
-                         marker='.', lw=1.0, markersize=9, color=color,
-                         linestyle='-')
+            if chart_type == "bar":
+                ind = [x+bar_offset for x in range(len(xtick_labels))]
+                plt.bar(ind, p.data, bar_width, label=label, yerr=stddev)
+            else:
+                plt.errorbar(range(len(xtick_labels)), p.data, stddev, label=label,
+                             marker='.', lw=1.0, markersize=9, color=color,
+                             linestyle='-')
+            bar_offset += bar_width
 
             if subplot_count == 1:
                 correct_font(plt.ylabel(p.ylabel), fontsize_axis)
             else:
                 correct_font(curr_ax.set_title(p.ylabel), fontsize_axis)
-            plt.grid(True)
+
+            if chart_type == "bar":
+                plt.grid(True, axis="y", alpha=0.4)
+            else:
+                plt.grid(True)
 
         for tick in curr_ax.yaxis.get_major_ticks():
             correct_font(tick.label, fontsize_ticks)
@@ -272,6 +287,9 @@ def get_argument_parser():
         default="Benchmark")
     parser.add_argument("--legend-title",
         help="legend title.")
+    parser.add_argument("--chart-type",
+        help="specify the chart type (line|bar).",
+        default="line")
     parser.add_argument("-o", "--outfile",
         help="file name for saving the plot.",
         default="plot.png")
@@ -281,6 +299,8 @@ def get_argument_parser():
 def check_args(args):
     if not args.files:
         exit_with_error("Please specify the benchmark result files.")
+    if args.chart_type and args.chart_type != "line" and args.chart_type != "bar":
+        exit_with_error("Invalid chart type specified, expected 'line' or 'bar'.")
 
 
 def get_list_arg(arg):
@@ -319,4 +339,5 @@ if __name__ == "__main__":
               get_list_arg(args.xtick_labels),
               args.outfile,
               args.legend_title,
-              args.xtick_legend)
+              args.xtick_legend,
+              args.chart_type)
