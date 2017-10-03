@@ -190,10 +190,9 @@ def plot_data(files, col_specs, data_labels, xlabel, ylabel, title,
 
         plotlines = all_plotlines[i]
 
-        bar_width = 0.4
-        bar_offset = 0
-        if n > 1:
-            bar_offset -= (n / 2.0) * (bar_width / 2)
+        bar_width = 0.8 / n
+        bar_offset = 0 - (n - 1) * (bar_width / 2)
+
         for (p, label, color) in zip(plotlines, data_labels, COLORS):
             stddev = None
             if len(p.stddev) > 0:
