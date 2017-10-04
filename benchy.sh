@@ -17,7 +17,7 @@
 set -u
 
 # script name
-readonly PROG=$(basename $0)
+PROG=$(basename $0)
 
 # benchmark configuration file
 readonly BENCHMARK_CONF="benchmark.conf"
@@ -51,11 +51,6 @@ readonly DEFAULT_RESULTS_PATH=/tmp
 readonly RC_OK=0    # everything went fine
 readonly RC_ERROR=1 # something went wrong
 
-# determine script directory
-SOURCE="${BASH_SOURCE[0]}"
-while [ -h "$SOURCE" ] ; do SOURCE="$(readlink "$SOURCE")"; done
-readonly SCRIPT_DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
-
 # ----------------------------------------------------------------------------
 # functions
 # ----------------------------------------------------------------------------
@@ -73,6 +68,9 @@ Options:
   -r, --results-path
     benchmark results will be saved in a timestamped subdirectory of the
     directory specified with this argument; by default this is /tmp
+  -o, --output-path
+    benchmark results will be saved at the specified path; this option is
+    exclusive with -r.
   --init
     initialize new benchmark suite; the path specified with -d must be an
     empty directory in this case
@@ -179,6 +177,8 @@ trap on_exit EXIT
 # @global variable
 suite_path=
 # @global variable
+output_path=
+# @global variable
 results_path="$DEFAULT_RESULTS_PATH"
 # @global variable
 init_benchmark=
@@ -194,6 +194,7 @@ parse_command_line_args()
       case $option in
         -d|--suite-path*)   suite_path="$i";;
         -r|--results-path*) results_path="$i";;
+        -o|--output-path*)  output_path="$i";;
         *) error "unknown option: $option";;
       esac
       option=""
@@ -220,9 +221,15 @@ verify_command_line_args()
   [ -r "$suite_path" ] || \
     error_and_usage "User '$USER' has no read permissions for '$suite_path'."
 
-  [ -d "$results_path" ] || error_and_usage "Invalid directory '$results_path'."
-  [ -w "$results_path" ] || \
-    error_and_usage "User '$USER' has no write permissions for '$results_path'."
+  if [ -n "$output_path" ]; then
+    mkdir -p "$output_path" || error_and_usage "Invalid output directory '$output_path'."
+    [ -w "$output_path" ] || \
+      error_and_usage "User '$USER' has no write permissions for '$output_path'."
+  else
+    [ -d "$results_path" ] || error_and_usage "Invalid directory '$results_path'."
+    [ -w "$results_path" ] || \
+      error_and_usage "User '$USER' has no write permissions for '$results_path'."
+  fi
 
   # make sure the benchmark directory to initialize is empty
   if [ -n "$init_benchmark" ]; then
@@ -246,12 +253,16 @@ group_datadir=
 init_suite_datadir()
 {
   local -r suite_name="$1"
-  local -r tstamp=$(date +"%y%m%d_%H%M%S")
-  # make sure we have an absolute path
-  suite_datadir="$(readlink -f "$results_path")"
-  suite_datadir="$suite_datadir/benchy.$suite_name.$tstamp"
-  mkdir "$suite_datadir" || \
-    error "Failed creating benchmark results directory '$suite_datadir'."
+  if [ -n "$output_path" ]; then
+    suite_datadir="$(readlink -f "$output_path")"
+  else
+    local -r tstamp=$(date +"%y%m%d_%H%M%S")
+    # make sure we have an absolute path
+    suite_datadir="$(readlink -f "$results_path")"
+    suite_datadir="$suite_datadir/benchy.$suite_name.$tstamp"
+    mkdir -p "$suite_datadir" || \
+      error "Failed creating benchmark results directory '$suite_datadir'."
+  fi
 }
 
 add_group_datadir()
