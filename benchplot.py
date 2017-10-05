@@ -135,7 +135,8 @@ def get_csv_fields(csv_file, col_specs):
 
 
 def plot_data(files, col_specs, data_labels, xlabel, ylabel, title,
-              xtick_labels, out_file, legend_title, xtick_legend, chart_type):
+              xtick_labels, out_file, legend_title, xtick_legend, chart_type,
+              yscale):
     """
     Generate plot.
     """
@@ -223,6 +224,8 @@ def plot_data(files, col_specs, data_labels, xlabel, ylabel, title,
             # make these tick labels invisible
             plt.setp(curr_ax.get_xticklabels(), visible=False)
 
+        curr_ax.set_yscale(yscale)
+
     # set labels, title and legend
     correct_font(plt.xlabel(xlabel), fontsize_axis)
     if title:
@@ -276,6 +279,9 @@ def get_argument_parser():
     parser.add_argument("--ylabel",
         help="y axis label.",
         default=None)
+    parser.add_argument("--yscale",
+        help="y axis scale (linear | log | logit | symlog).",
+        default="linear")
     parser.add_argument("--xtick-labels",
         help="custom tick labels for the X axis, comma-separated.",
         default=None)
@@ -300,6 +306,10 @@ def check_args(args):
         exit_with_error("Please specify the benchmark result files.")
     if args.chart_type and args.chart_type != "line" and args.chart_type != "bar":
         exit_with_error("Invalid chart type specified, expected 'line' or 'bar'.")
+    ys = args.yscale
+    if ys and ys != "linear" and ys != "log" and ys != "logit" and ys != "symlog":
+        exit_with_error("Invalid y-axis scale specified, expected linear, log, \
+            logit, or symlog.")
 
 
 def get_list_arg(arg):
@@ -339,4 +349,5 @@ if __name__ == "__main__":
               args.outfile,
               args.legend_title,
               args.xtick_legend,
-              args.chart_type)
+              args.chart_type,
+              args.yscale)
