@@ -9,6 +9,7 @@ Author        Dimitar Misev
 
 from matplotlib import pyplot as plt
 import matplotlib
+import math
 import argparse
 import csv
 import sys
@@ -134,6 +135,27 @@ def get_csv_fields(csv_file, col_specs):
     return plotlines
 
 
+def percentile(values, percent):
+    """
+    Find the percentile of a list of values.
+    Code adapted from https://stackoverflow.com/a/2753343
+    @parameter values - is a list of values.
+    @parameter percent - a float value from 0.0 to 1.0.
+    @return - the percentile of the values
+    """
+    if not values:
+        return None
+    values.sort()
+    k = (len(values)-1) * percent
+    f = math.floor(k)
+    c = math.ceil(k)
+    if f == c:
+        return values[int(k)]
+    d0 = values[int(f)] * (c-k)
+    d1 = values[int(c)] * (k-f)
+    return d0+d1
+
+
 def plot_data(files, col_specs, data_labels, xlabel, ylabel, title,
               xtick_labels, out_file, legend_title, xtick_legend, chart_type,
               yscale):
@@ -224,7 +246,18 @@ def plot_data(files, col_specs, data_labels, xlabel, ylabel, title,
             # make these tick labels invisible
             plt.setp(curr_ax.get_xticklabels(), visible=False)
 
-        curr_ax.set_yscale(yscale)
+    if yscale == "symlog":
+        alldata = []
+        for plotlines in all_plotlines:
+            for p in plotlines:
+                alldata.extend(p.data)
+        perc = percentile(alldata, 0.8)
+        ax.set_yscale(yscale, linthreshy=perc)
+        ax.axhline(perc, linewidth=1, alpha=0.4)
+        ax.set_yticks([perc], minor=True)
+        ax.set_yticklabels(["log $\\uparrow$\n" + str(perc) + "\nlin $\\downarrow$"], minor=True, fontsize=fontsize_ticks)
+    else:
+        ax.set_yscale(yscale)
 
     # set labels, title and legend
     correct_font(plt.xlabel(xlabel), fontsize_axis)
