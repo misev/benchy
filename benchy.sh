@@ -349,6 +349,8 @@ aggregate_benchmark_results()
 
   # extract time, memory, cpu utilization, etc. for each benchmark repetition
   for result in "$group_datadir/$benchmark"-*; do
+    # ignore failed repetitions
+    [[ "$result" == *.failed ]] && continue
     # format: h:mm:ss or m:ss
     awk '/Elapsed \(wall clock\)/ { print $8; }' "$result" | \
       awk -F: 'END { if (NF > 2) printf("%.2f\n", $1 * 3600 + $2 * 60 + $3)
@@ -362,6 +364,16 @@ aggregate_benchmark_results()
   # write header if not done already
   [ -f "$result_group" ] || echo "$result_group_header" > "$result_group"
   echo -n "$benchmark" >> "$result_group"
+
+  # the benchmark has failed to execute so we set all measurements to -1 and exit early
+  if [ ! -f "$result_time" ]; then
+    for result in "$result_time" "$result_memory" "$result_cpu_utilization"; do
+      echo -n ",-1,-1,-1,-1" >> "$result_group"
+    done
+    echo "" >> "$result_group"
+    log "Added invalid benchmark '$benchmark' results in '$result_group'."
+    return
+  fi
 
   # calculate statistics and add to the group results
   for result in "$result_time" "$result_memory" "$result_cpu_utilization"; do
@@ -398,14 +410,21 @@ aggregate_group_results()
   [ -f "$result_suite" ] || echo "$result_suite_header" > "$result_suite"
   echo -n "$group" >> "$result_suite"
 
+  # if a benchmark is failed then the whole group is failed
+  grep ',\-1,\-1,\-1,\-1' "$result_group" > /dev/null
+  local failed_group=$?
+
   local i
   local param
   local field=1
   for param in {1..3}; do
     for i in {1..3}; do
       field=$(($field+1))
-      local total=$(awk -F',' '{ sum += $'$field' }
-        END { printf("%.2f", sum) }' "$result_group")
+      local total="-1" # failed by default
+      if [ $failed_group -ne 0 ]; then
+        total=$(awk -F',' '{ sum += $'$field' }
+          END { printf("%.2f", sum) }' "$result_group")
+      fi
       echo -n ",$total" >> "$result_suite"
     done
     # skip the stddev field
@@ -413,7 +432,11 @@ aggregate_group_results()
   done
   echo "" >> "$result_suite"
 
-  log "Added group '$group' results to '$result_suite'."
+  if [ $failed_group -eq 0 ]; then
+    log "Added invalid group '$group' results to '$result_suite'."
+  else
+    log "Added group '$group' results to '$result_suite'."
+  fi
 }
 
 readonly result_total_header="Suite,\
@@ -431,20 +454,31 @@ aggregate_total_results()
   echo "$result_total_header" > "$result_total"
   echo -n "$suite" >> "$result_total"
 
+  # if a group is failed then the whole suite is failed
+  grep ',\-1,\-1,\-1,\-1' "$result_suite" > /dev/null
+  local failed_suite=$?
+
   local i
   local param
   local field=1
   for param in {1..3}; do
     for i in {1..3}; do
       field=$(($field+1))
-      local total=$(awk -F',' '{ sum += $'$field' }
-        END { printf("%.2f", sum) }' "$result_suite")
+      local total="-1" # failed by default
+      if [ ! $failed_suite -ne 0 ]; then
+        total=$(awk -F',' '{ sum += $'$field' }
+          END { printf("%.2f", sum) }' "$result_suite")
+      fi
       echo -n ",$total" >> "$result_total"
     done
   done
   echo "" >> "$result_total"
 
-  log "Added total '$suite' results to '$result_total'."
+  if [ $failed_suite -eq 0 ]; then
+    log "Added invalid total '$suite' results to '$result_total'."
+  else
+    log "Added total '$suite' results to '$result_total'."
+  fi
 }
 
 # ----------------------------------------------------------------------------
@@ -469,12 +503,17 @@ execute_repetition()
   # https://askubuntu.com/questions/430194/no-such-file-or-directory-when-executing-usr-bin-time/431184#431184
   export -f "$RUN_BENCHMARK"
   local retry
+  local failed_retries=0
   for retry in $(seq $benchmark_retry); do
     echo "$RUN_BENCHMARK $benchmark $group $repetition $group_datadir" | \
       /usr/bin/time -v -o "$time_output" /bin/bash && break
-    # count only the first failed try
-    [ "$retry" == "1" ] && failed_benchmark_count=$(($failed_benchmark_count + 1))
+    failed_retries=$(($failed_retries + 1))
   done
+
+  if [ $failed_retries -eq $benchmark_retry ]; then
+    failed_benchmark_count=$(($failed_benchmark_count + 1))
+    mv "$time_output" "$time_output".failed
+  fi
 
   execute_if_defined "$AFTER_BENCHMARK_REPEAT" "$benchmark" "$group" "$repetition"
 }
