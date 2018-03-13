@@ -13,6 +13,7 @@ import math
 import argparse
 import csv
 import sys
+import re
 
 COLORS = ['black', 'red', 'gold', 'green', 'blue', 'magenta',
           'cyan', 'gray', 'darkorange', 'navy', 'violet', 'lime', 'pink']
@@ -59,7 +60,8 @@ class PlotLine:
     def append(self, data_value, xtick_label, stddev_value=None):
         self.data.append(data_value)
         if "." in xtick_label:
-            xtick_label = xtick_label[:xtick_label.find(".")]
+            xtick_label = xtick_label[:xtick_label.rfind(".")]
+        xtick_label = re.sub(r'^0+', '', xtick_label) # remove leading zeros
         self.xtick_labels.append(xtick_label)
         if stddev_value is not None:
             self.stddev.append(stddev_value)
